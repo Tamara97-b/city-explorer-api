@@ -1,41 +1,77 @@
 'use strict';
-
-const express = require('express') 
-const app = express() 
+require('dotenv').config();
+const express = require('express')
+const app = express();
 const cors = require('cors');
-app.use(cors())
+app.use(cors());
+const axios = require('axios');
+
+class Forcast {
+  constructor(item) {
+    this.date = item.valid_date;
+    this.description = `Low of ${item.low_temp}, high of ${item.max_temp} with broken clouds${item.weather.description}`;
+  }
+}
+class Movie {
+  constructor(item) {
+    this.title = item.title;
+    this.overview = item.overview;
+    this.average_votes = item.vote_average;
+    this.total_votes = item.vote_count;
+    this.image_url = `https://image.tmdb.org/t/p/w500${item.backdrop_path}`;
+    this.popularity = item.popularity;
+    this.released_on = item.release_date;
+  }
+}
 
 
-const weather = require('./data/weather.json')
 
-app.get('/', 
-  function (request, response) {     
-    response.send(weather.city_name) 
+
+
+const PORT = process.env.PORT;
+const weatherKey = process.env.tamaraWeather;
+const movieKey = process.env.TamaraMovie;
+
+// const weather = require('./data/weather.json')
+
+const getWeather = (request, response) => {
+  let name = request.query.city_name;
+  let url = `http://api.weatherbit.io/v2.0/forecast/daily?city=${name}&key=${weatherKey}`;
+  axios
+    .get(url)
+    .then(result => {
+      let filteredData = result.data.data.map(item => {
+        return new Forcast(item);
+      })
+      response.send(filteredData)
+    })
+    .catch(err => console.log(err))
+}
+
+function getMovie(request, response) {
+  let name = request.query.city_name;
+  let url = `https://api.themoviedb.org/3/search/movie?api_key=${movieKey}&query=${name}&page=1&include_adult=false`;
+  axios
+    .get(url)
+    .then(result => {
+      let newMovie = result.data.results.map(item => {
+        return new Movie(item);
+      })
+      response.send(newMovie)
+    })
+    .catch(err => console.log(err))
+}
+
+app.get('/',
+  function (request, response) {
+    response.send('hello from home ')
   })
-  
-  app.get('/get-wethear', (request, response) => {
-   
-    const city_name = request.query.city_name;
-  
-    if (city_name) {
-      const returnArray = weather.filter((item) => {
-        return item.city_name === city_name;
-      });
-  
-      if (returnArray.length) {
-        response.json(returnArray);
-      } else {
-        response.send('no data found :disappointed:')
-      }
-    } else {
-      response.json(weather);
-    }
-  })
-  
-  
-  
-  
-  // kick start the express server to work
-  app.listen(3001, () => {
-    console.log(`Server started on port`);
-  });
+
+app.get('/get-wethear', getWeather);
+app.get('/get-movies', getMovie);
+
+
+// kick start the express server to work
+app.listen(PORT, () => {
+  console.log(`Server started on port`);
+});
